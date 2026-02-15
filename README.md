@@ -1,0 +1,75 @@
+This repository contains the simulation code used in the paper:
+
+"Improving energy stability in hybrid renewable microgrids for isolated regions through data analytics and predictive modelling"
+
+This project implements a predictive, explainable early-warning stability risk assessment for islanded AC PV+BESS microgrids, focusing on frequency stability, generation-load imbalance, and unserved load risk.
+
+Requirements
+- Python 3.10
+- macOS / Windows / Linux
+
+Install dependencies
+pip install -r requirements.txt
+
+Run the full project
+python run_pipeline.py
+
+This executes
+- Data preparation
+- Microgrid simulation
+- Risk index calculation
+- Extreme event identification
+- Plot generation
+
+Project Structure:
+case_study_sim/
+1. data/
+2. results/
+2.1 events/
+2.2 risk_curves/
+2.3 sim/
+2.3.1 quicklooks/
+2.4 xai/
+3. scripts/
+4. config.py
+5. README.md
+6. run_pipeline.py
+
+Configuration:
+All simulation parameters are defined in config.py:
+- time step and forecast period
+- PV parameters
+- BESS parameters
+- SoC limits
+- Risk index weights
+This is the main file that needs editing to reproduce alternative scenarios (and uploading relevant data into "data/" folder)
+
+Reproduce Paper Figures
+After running run_pipeline.py, figures used in the paper are automatically generated in:
+1. Seasonal time series (Fig.2):
+- case_study_sim/results/sim/
+1.1 load_pv_net_jan_2w.png
+1.2 load_pv_net_jul_2w.png
+1.3 soc_jan_2w.png
+1.4 soc_jul_2w.png
+1.5 unserved_jan_2w.png
+1.6 unserved_jul_2w.png
+2. Risk curves (Fig. 3)
+- case_study_sim/results/risk_curves/
+2.1 risk_index_cdf.png
+2.2 risk_index_exceedance.png
+2.3 unserved_cdf.png
+2.4 unserved_exceedance.png
+3. Explainability (Fig. 4)
+- case_study_sim/results/xai/
+3.1 shap_beeswarm.png
+3.2 shap_summary_bar.png
+
+Data Sources Used
+Load profiles: NREL End-Use Load Profiles / Open Energy Data Initiative
+PV generation: PVGIS
+
+Data files are included in the data/ folder. The sources to access and download the data are provided in the paper under the references [25] for load and [27] for PV (the PV data was fetched from Utqiagvik, Alaska with coordinates 71.2906 N latitude and 156.7886 W longitude)
+
+License
+This project is under the MIT License. If you use this code, please cite "Improving energy stability in hybrid renewable microgrids for isolated regions through data analytics and predictive modelling" (IEEE conference paper citation details will be added after publication)
