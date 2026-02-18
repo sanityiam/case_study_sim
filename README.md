@@ -53,16 +53,17 @@ python run_pipeline.py
 
 Project Structure:
 case_study_sim/
-├── data/
-├── results/
-│   ├── events/
-│   ├── risk_curves/
-│   ├── sim/
-│   └── xai/
-├── scripts/
-├── config.py
-├── run_pipeline.py
-└── README.md
+1. data/
+2. results/
+2.1 events/
+2.2 risk_curves/
+2.3 sim/
+2.3.1 quicklooks/
+2.4 xai/
+3. scripts/
+4. config.py
+5. README.md
+6. run_pipeline.py
 
 Configuration:
 All simulation parameters are defined in config.py:
