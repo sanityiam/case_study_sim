@@ -1,4 +1,4 @@
-# Main operator settings (change all parameters here and only change the once that are marked as ===CHANGE THESE===)
+# Main operator settings (change all parameters here and only change the ones that are marked as ===CHANGE THESE===)
 from pathlib import Path
 
 # Project paths
@@ -12,16 +12,17 @@ SIM_DIR     = RESULTS_DIR / "sim"
 RISK_DIR    = RESULTS_DIR / "risk_curves"
 EVENTS_DIR  = RESULTS_DIR / "events"
 XAI_DIR     = RESULTS_DIR / "xai"
+COMPARE_DIR = RESULTS_DIR / "compare"
+REPORT_DIR = RESULTS_DIR / "report"
 
-# ///
 FIG_DIR     = PROJECT_ROOT / "figures"
 QUICKLOOKS_DIR = FIG_DIR / "quicklooks"
 
 # Input files (===CHANGE THESE===)
-LOAD_CSV = DATA_DIR / "load_15min_kw_scaled.csv"
-PV_CSV   = DATA_DIR / "pv_15min_kw.csv"
+LOAD_CSV = DATA_DIR / "processed" / "load_15min_kw_scaled.csv"
+PV_CSV   = DATA_DIR / "processed" / "pv_15min_kw.csv"
 
-# Time base
+# Time base (===CHANGE THESE===)
 DT_MIN = 15
 DT_H   = DT_MIN / 60.0
 

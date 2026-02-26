@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Paths
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT))
 
 from config import SIM_DIR, EVENTS_DIR
@@ -47,6 +47,7 @@ def plot_event(ts: pd.Timestamp):
     plt.plot(w["timestamp"], w["load_kw"], label="Load (kW)")
     plt.plot(w["timestamp"], w["pv_kw"], label="PV (kW)")
     plt.plot(w["timestamp"], w["net_kw"], label="Net deficit (kW)")
+    plt.title("Event window: load / pv / net")
     plt.axvline(ts, linestyle="--")
     plt.legend()
     plt.xticks(rotation=30)
@@ -58,6 +59,7 @@ def plot_event(ts: pd.Timestamp):
     plt.figure(figsize=(10, 4))
     plt.plot(w["timestamp"], w["soc_pre"], label="SoC (pre)")
     plt.plot(w["timestamp"], w["unserved_kw"], label="Unserved (kW)")
+    plt.title("Event window: soc and unserved load")
     plt.axvline(ts, linestyle="--")
     plt.legend()
     plt.xticks(rotation=30)
@@ -71,6 +73,7 @@ def plot_event(ts: pd.Timestamp):
         plt.plot(w["timestamp"], w["reserve_deficit_p_kw"], label="ReserveDef_P (kW)")
     if "reserve_deficit_e_kwh" in w.columns:
         plt.plot(w["timestamp"], w["reserve_deficit_e_kwh"], label="ReserveDef_E (kWh)")
+    plt.title("Event window: reserve deficits")
     plt.axvline(ts, linestyle="--")
     plt.legend()
     plt.xticks(rotation=30)
@@ -81,6 +84,7 @@ def plot_event(ts: pd.Timestamp):
     # risk.png (risk index)
     plt.figure(figsize=(10, 4))
     plt.plot(w["timestamp"], w["risk_index"], label="Risk index")
+    plt.title("Event window: risk index")
     plt.axvline(ts, linestyle="--")
     plt.legend()
     plt.xticks(rotation=30)

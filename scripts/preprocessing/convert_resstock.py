@@ -1,7 +1,17 @@
-import pandas as pd
+# This script converts the raw ResStock parquet file into a 15-minute load CSV (for operators: only change sections that are marked with ===CHANGE THESE===)
 
-inp = "data/resstock_building.parquet"
-out = "data/load_15min.csv"
+import pandas as pd
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+
+# raw load filename/path (===CHANGE THESE===)
+inp = ROOT / "data" / "raw" / "resstock_building.parquet"
+
+# processed output filename/path (===CHANGE THESE===)
+out = ROOT / "data" / "processed" / "load_15min.csv"
+
+out.parent.mkdir(parents=True, exist_ok=True)
 
 df = pd.read_parquet(inp)
 

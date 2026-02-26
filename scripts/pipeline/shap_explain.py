@@ -50,7 +50,7 @@ split = int(0.7 * len(df))
 X_train, X_test = X.iloc[:split], X.iloc[split:]
 y_train, y_test = y.iloc[:split], y.iloc[split:]
 
-# Train model (RFC)
+# Train model
 clf = RandomForestClassifier(
     n_estimators=300,
     max_depth=8,
@@ -87,11 +87,11 @@ X_explain = X_test.iloc[:5000]
 shap_out = explainer.shap_values(X_explain)
 
 if isinstance(shap_out, list):
-    sv = shap_out[1]  # class 1
+    sv = shap_out[1]
 else:
     sv = shap_out.values if hasattr(shap_out, "values") else shap_out
     if sv.ndim == 3:
-        sv = sv[:, :, 1]  # class 1
+        sv = sv[:, :, 1]
 
 feature_labels = {
     "load_kw": "Load",
@@ -118,6 +118,15 @@ imp = (
 )
 
 imp.index = [feature_labels.get(c, c) for c in imp.index]
+
+# save top drivers
+TOP_DRIVERS_TXT = XAI_DIR / "top_drivers.txt"
+top_drivers = list(imp.index)[::-1]
+with open(TOP_DRIVERS_TXT, "w", encoding="utf-8") as f:
+    for name in top_drivers[:5]:
+        f.write(f"{name}\n")
+
+print("Saved top drivers:", TOP_DRIVERS_TXT)
 
 plt.figure(figsize=(9.0, 3.2))
 plt.barh(imp.index, imp.values)

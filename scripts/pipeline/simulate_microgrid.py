@@ -17,7 +17,7 @@ SIM_DIR.mkdir(parents=True, exist_ok=True)
 OUT_CSV = SIM_DIR / "sim_results.csv"
 METRICS_TXT = SIM_DIR / "metrics_summary.txt"
 
-# Plot windows (2 active weeks - change by operator if needed)
+# Plot windows
 WINDOWS = [
     ("2018-01-01", "2018-01-15", "jan_2w"),
     ("2018-07-01", "2018-07-15", "jul_2w"),
@@ -40,7 +40,7 @@ load_series = df["load_kw"].to_numpy()
 pv_series   = df["pv_kw"].to_numpy()
 N = len(df)
 
-# Simulation + rolling reserve & risk
+# Simulation main
 soc = SOC0
 
 soc_pre_list = []
@@ -61,19 +61,19 @@ risk_index_list = []
 for i in range(N):
     net_kw = float(net[i])
 
-    # SoC pre-action
+    # SoC
     soc_pre = float(soc)
     soc_pre_list.append(soc_pre)
 
-    # Energy margins (kWh)
+    # Energy margins
     e_avail_dis = max(0.0, (soc - SOC_MIN) * E_KWH)
     e_avail_chg = max(0.0, (SOC_MAX - soc) * E_KWH)
 
-    # Feasible power this step (kW)
+    # Feasible power this step
     p_dis_feasible = min(P_MAX_KW, e_avail_dis / DT_H)
     p_chg_feasible = min(P_MAX_KW, e_avail_chg / DT_H)
 
-    # Rolling forecast (persistence baseline)
+    # Rolling forecast
     h_eff = min(H_STEPS, N - i)
     load_hat = np.full(h_eff, load_series[i], dtype=float)
     pv_hat   = np.full(h_eff, pv_series[i], dtype=float)
@@ -93,34 +93,32 @@ for i in range(N):
     res_def_p_list.append(res_def_p)
     res_def_e_list.append(res_def_e)
 
-    # Reactive BESS action on actual net
+    # Reactive BESS action
     batt_p = 0.0
     unserved = 0.0
 
-    if net_kw > 0.0:  # deficit -> discharge
+    if net_kw > 0.0:
         batt_p = min(net_kw, p_dis_feasible)
         soc -= (batt_p * DT_H) / (ETA_DIS * E_KWH)
         unserved = max(0.0, net_kw - batt_p)
 
-    elif net_kw < 0.0:  # surplus -> charge
+    elif net_kw < 0.0:
         batt_p = -min(-net_kw, p_chg_feasible)
         soc += (-batt_p * DT_H * ETA_CH) / E_KWH
 
-    # Clamp SoC
     soc = min(SOC_MAX, max(SOC_MIN, soc))
 
     soc_list.append(float(soc))
     batt_p_list.append(float(batt_p))
     unserved_list.append(float(unserved))
 
-    # Frequency-risk proxy
+    # Frequency-risk
     risk_event = (unserved > 0.0) or (res_def_p > 0.0) or (res_def_e > 0.0)
     risk_index = ALPHA * unserved + BETA * res_def_p + GAMMA * res_def_e
 
     risk_event_list.append(bool(risk_event))
     risk_index_list.append(float(risk_index))
 
-# Attach columns
 df["soc_pre"] = soc_pre_list
 df["soc"] = soc_list
 df["batt_p_kw"] = batt_p_list
@@ -136,7 +134,6 @@ df["reserve_deficit_e_kwh"] = res_def_e_list
 df["risk_event"] = risk_event_list
 df["risk_index"] = risk_index_list
 
-# Save results .csv
 df.to_csv(OUT_CSV, index=False)
 print(f"Saved results: {OUT_CSV} ({len(df)} rows)")
 
@@ -144,40 +141,80 @@ print(f"Saved results: {OUT_CSV} ({len(df)} rows)")
 QUICKLOOK_DIR = SIM_DIR / "quicklooks"
 QUICKLOOK_DIR.mkdir(parents=True, exist_ok=True)
 
-# Full-year Load / PV / Net
-plt.figure(figsize=(12,4))
-plt.plot(df["timestamp"], df["load_kw"], label="Load (kW)")
-plt.plot(df["timestamp"], df["pv_kw"], label="PV (kW)")
-plt.plot(df["timestamp"], df["net_kw"], label="Net deficit (kW)")
+# daily summaries
+dff = df.copy()
+dff = dff.set_index("timestamp").sort_index()
+
+daily = pd.DataFrame(index=dff.resample("D").mean().index)
+daily["load_mean_kw"] = dff["load_kw"].resample("D").mean()
+daily["pv_mean_kw"] = dff["pv_kw"].resample("D").mean()
+daily["net_mean_kw"] = dff["net_kw"].resample("D").mean()
+
+daily["soc_min"] = dff["soc"].resample("D").min()
+daily["soc_med"] = dff["soc"].resample("D").median()
+daily["soc_max"] = dff["soc"].resample("D").max()
+
+daily["unserved_max_kw"] = dff["unserved_kw"].resample("D").max()
+daily["risk_max"] = dff["risk_index"].resample("D").max()
+
+W = 7
+daily["load_mean_kw_roll7"] = daily["load_mean_kw"].rolling(W, min_periods=1).mean()
+daily["pv_mean_kw_roll7"] = daily["pv_mean_kw"].rolling(W, min_periods=1).mean()
+daily["net_mean_kw_roll7"] = daily["net_mean_kw"].rolling(W, min_periods=1).mean()
+
+daily["soc_med_roll7"] = daily["soc_med"].rolling(W, min_periods=1).median()
+daily["unserved_max_kw_roll7"] = daily["unserved_max_kw"].rolling(W, min_periods=1).mean()
+daily["risk_max_roll7"] = daily["risk_max"].rolling(W, min_periods=1).mean()
+
+plt.figure(figsize=(12, 4))
+plt.plot(daily.index, daily["load_mean_kw"], label="Daily mean load (kW)", alpha=0.6)
+plt.plot(daily.index, daily["load_mean_kw_roll7"], label="7d avg load", linestyle="--", linewidth=2.0)
+
+plt.plot(daily.index, daily["pv_mean_kw"], label="Daily mean pv (kW)", alpha=0.6)
+plt.plot(daily.index, daily["pv_mean_kw_roll7"], label="7d avg pv", linestyle="--", linewidth=2.0)
+
+plt.plot(daily.index, daily["net_mean_kw"], label="Daily mean net deficit (kW)", alpha=0.6)
+plt.plot(daily.index, daily["net_mean_kw_roll7"], label="7d avg net deficit", linestyle="--", linewidth=2.0)
+
 plt.legend()
+plt.title("Daily mean load / pv / net (full year)")
 plt.xticks(rotation=30)
 plt.tight_layout()
 plt.savefig(QUICKLOOK_DIR / "load_pv_net_full.png", dpi=200)
 plt.close()
 
-# Full-year SoC
-plt.figure(figsize=(12,3))
-plt.plot(df["timestamp"], df["soc"], label="SoC")
-plt.ylim(0,1)
+plt.figure(figsize=(12, 3))
+plt.fill_between(daily.index, daily["soc_min"], daily["soc_max"], alpha=0.20, label="Daily soc min-max")
+plt.plot(daily.index, daily["soc_med"], label="Daily soc median", alpha=0.65)
+plt.plot(daily.index, daily["soc_med_roll7"], label="7d median soc", linestyle="--", linewidth=2.0)
+
+plt.ylim(0, 1)
 plt.legend()
+plt.title("Daily battery soc band (full year)")
 plt.xticks(rotation=30)
 plt.tight_layout()
 plt.savefig(QUICKLOOK_DIR / "soc_full.png", dpi=200)
 plt.close()
 
-# Full-year Unserved
-plt.figure(figsize=(12,3))
-plt.plot(df["timestamp"], df["unserved_kw"])
-plt.ylabel("Unserved (kW)")
+plt.figure(figsize=(12, 3))
+plt.plot(daily.index, daily["unserved_max_kw"], label="Daily max unserved (kW)", alpha=0.65)
+plt.plot(daily.index, daily["unserved_max_kw_roll7"], label="7d avg daily max", linestyle="--", linewidth=2.0)
+
+plt.ylabel("Daily max unserved (kW)")
+plt.legend()
+plt.title("Daily max unserved load (full year)")
 plt.xticks(rotation=30)
 plt.tight_layout()
 plt.savefig(QUICKLOOK_DIR / "unserved_full.png", dpi=200)
 plt.close()
 
-# Full-year Risk Index
-plt.figure(figsize=(12,3))
-plt.plot(df["timestamp"], df["risk_index"])
-plt.ylabel("Risk index (proxy)")
+plt.figure(figsize=(12, 3))
+plt.plot(daily.index, daily["risk_max"], label="Daily max risk index", alpha=0.65)
+plt.plot(daily.index, daily["risk_max_roll7"], label="7d avg daily max", linestyle="--", linewidth=2.0)
+
+plt.ylabel("Daily max risk index")
+plt.legend()
+plt.title("Daily max risk index (full year)")
 plt.xticks(rotation=30)
 plt.tight_layout()
 plt.savefig(QUICKLOOK_DIR / "risk_index_full.png", dpi=200)
@@ -211,14 +248,13 @@ with open(METRICS_TXT, "w") as f:
 
 print(f"Saved metrics: {METRICS_TXT}")
 
-# Plots saved into results/sim/
 def plot_window(df_in, start, end, tag):
     start_ts = pd.Timestamp(start)
     end_ts   = pd.Timestamp(end)
     w = df_in[(df_in["timestamp"] >= start_ts) & (df_in["timestamp"] < end_ts)].copy()
 
     if w.empty:
-        print(f"[WARN] Empty window: {tag} ({start} -> {end})")
+        print(f"Empty window: {tag} ({start} -> {end})")
         return
 
     # Load + PV + Net
@@ -254,7 +290,7 @@ def plot_window(df_in, start, end, tag):
     # Risk index
     plt.figure(figsize=(10, 3))
     plt.plot(w["timestamp"], w["risk_index"])
-    plt.ylabel("Risk index (proxy)")
+    plt.ylabel("Risk index")
     plt.xticks(rotation=30)
     plt.tight_layout()
     plt.savefig(SIM_DIR / f"risk_index_{tag}.png", dpi=200)
