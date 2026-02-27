@@ -32,16 +32,13 @@ PV_URL = (
     "&browser=1"
 )
 
-
 def run_cmd(cmd, title: str) -> None:
     print(f"{title}")
     print(f"command: {' '.join(map(str, cmd))}")
     subprocess.run(cmd, cwd=str(ROOT), check=True)
 
-
 def ensure_dirs() -> None:
     DATA_RAW_DIR.mkdir(parents=True, exist_ok=True)
-
 
 def download_file(url: str, out_path: Path, force: bool = False) -> None:
     if out_path.exists() and not force:
@@ -51,7 +48,6 @@ def download_file(url: str, out_path: Path, force: bool = False) -> None:
     print(f"         -> {out_path}")
     urlretrieve(url, out_path)
     print(f"completed download: {out_path}")
-
 
 def install_requirements() -> None:
     req = ROOT / "requirements.txt"
@@ -63,10 +59,9 @@ def install_requirements() -> None:
         "installing requirements",
     )
 
-
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="install deps, download data, preprocess, and run pipeline."
+        description="install deps, download data, preprocess, and run pipeline"
     )
     parser.add_argument(
         "--skip-install",

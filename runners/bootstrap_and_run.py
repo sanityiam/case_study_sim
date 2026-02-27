@@ -12,13 +12,11 @@ if os.name == "nt":
 else:
     VENV_PYTHON = VENV_DIR / "bin" / "python"
 
-
 def run(cmd, cwd=ROOT, title=None):
     if title:
         print(title)
     print(">", " ".join(map(str, cmd)))
     subprocess.run(cmd, cwd=str(cwd), check=True)
-
 
 def ensure_venv():
     if VENV_PYTHON.exists():
@@ -28,7 +26,6 @@ def ensure_venv():
     print(f"creating virtual environment at: {VENV_DIR}")
     run([sys.executable, "-m", "venv", str(VENV_DIR)], title="creating virtual environment")
 
-
 def install_requirements():
     req = ROOT / "requirements.txt"
     if not req.exists():
@@ -37,9 +34,8 @@ def install_requirements():
     # upgrade pip inside venv
     run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip"], title="upgrading pip in venv")
 
-    # install project dependencies
+    # install dependencies
     run([str(VENV_PYTHON), "-m", "pip", "install", "-r", str(req)], title="installing requirements")
-
 
 def run_all(
     clean: bool,
@@ -62,7 +58,6 @@ def run_all(
         cmd.append("--clean")
 
     run(cmd, title="running full pipeline (download + preprocess + simulation)")
-
 
 def main():
     parser = argparse.ArgumentParser(description="Create venv, install requirements, and run the full pipeline.")

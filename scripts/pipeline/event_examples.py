@@ -67,7 +67,7 @@ def plot_event(ts: pd.Timestamp):
     plt.savefig(event_folder / "soc_unserved.png", dpi=200)
     plt.close()
 
-    # reserve.png (reserve deficit)
+    # reserve.png
     plt.figure(figsize=(10, 4))
     if "reserve_deficit_p_kw" in w.columns:
         plt.plot(w["timestamp"], w["reserve_deficit_p_kw"], label="ReserveDef_P (kW)")
@@ -81,7 +81,7 @@ def plot_event(ts: pd.Timestamp):
     plt.savefig(event_folder / "reserve.png", dpi=200)
     plt.close()
 
-    # risk.png (risk index)
+    # risk.png
     plt.figure(figsize=(10, 4))
     plt.plot(w["timestamp"], w["risk_index"], label="Risk index")
     plt.title("Event window: risk index")

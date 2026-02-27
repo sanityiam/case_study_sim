@@ -43,6 +43,8 @@ from config import (
 # input files created
 METRICS_TXT = SIM_DIR / "metrics_summary.txt"
 PRED_REACT_TXT = COMPARE_DIR / "predictive_vs_reactive_summary.txt"
+PRED_REACT_OP_TXT = COMPARE_DIR / "predictive_vs_reactive_operator.txt"
+LEAD_TIME_CDF_PNG = COMPARE_DIR / "lead_time_cdf.png"
 TOP_DRIVERS_TXT = XAI_DIR / "top_drivers.txt"
 
 # key figures created
@@ -218,7 +220,6 @@ def _collect_top_events_table_and_stats():
 
     return _make_table(rows, col_widths_cm=(6.2, 10.8)), stats
 
-
 def _build_operator_notes(metrics_map, top_event_stats, top_drivers):
     notes = []
 
@@ -233,7 +234,7 @@ def _build_operator_notes(metrics_map, top_event_stats, top_drivers):
     if isinstance(total_unserved_kwh, float) and total_unserved_kwh > 0.0:
         notes.append("Unserved load happened: the system could not meet demand at some times")
         if isinstance(max_unserved_kw, float) and max_unserved_kw > 0:
-            notes.append("Quick fix options: increase bess energy/power, reduce load peaks, or add generation headroom")
+            notes.append("Fix options: increase bess energy/power, reduce load peaks, or add generation headroom")
 
     if isinstance(pct_risk_steps, float) and pct_risk_steps >= 20.0:
         notes.append("Risk flags are frequent: the system is often close to its limits")
@@ -241,13 +242,13 @@ def _build_operator_notes(metrics_map, top_event_stats, top_drivers):
     # risk frequent but unserved rare => reserve stress more than outages
     if isinstance(pct_risk_steps, float) and isinstance(pct_unserved_steps, float):
         if pct_risk_steps >= 20.0 and pct_unserved_steps <= 2.0:
-            notes.append("Reserve stress is common but outages are rare: consider a higher soc target or more bess headroom to reduce stress")
+            notes.append("Reserve stress is common but outages are rare. Consider a higher soc target or more bess headroom to reduce stress")
 
     # events + soc_pre
     if top_event_stats and top_event_stats.get("min_soc_pre") is not None:
         min_soc_pre = float(top_event_stats["min_soc_pre"])
         if min_soc_pre <= (SOC_MIN + 0.05):
-            notes.append("Top stress events happen at low soc: consider higher soc0, a tighter soc_min, or larger bess energy")
+            notes.append("Top stress events happen at low soc. Consider higher soc0, a tighter soc_min, or larger bess energy")
 
     # top drivers
     if top_drivers:
@@ -256,17 +257,16 @@ def _build_operator_notes(metrics_map, top_event_stats, top_drivers):
 
         d0 = top_drivers[0].lower()
         if "Reserve energy deficit" in d0:
-            notes.append("Reserve energy deficit is a key driver: bess energy may be too small, or soc_min is too high")
+            notes.append("Reserve energy deficit is a key driver. Bess energy may be too small, or soc_min is too high")
         if "reserve power deficit" in d0:
-            notes.append("Reserve power deficit is a key driver: bess p_max may be too small for peak deficit moments")
+            notes.append("Reserve power deficit is a key driver. Bess p_max may be too small for peak deficit moments")
         if "bess soc" in d0 or "soc" in d0:
-            notes.append("Soc is a key driver: consider a higher soc target (soc0 / soc_min / soc_max) to keep more usable energy")
+            notes.append("Soc is a key driver. Consider a higher soc target (soc0 / soc_min / soc_max) to keep more usable energy")
 
     # final action
     notes.append("To test changes: edit config.py, then run the pipeline again")
 
     return notes[:8]
-
 
 def main():
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -365,23 +365,32 @@ def main():
     story.append(Spacer(1, 12))
 
     # predictive vs reactive
-    story.append(Paragraph("Early-warning vs reactive comparison", st["sc_h2"]))
-    pr_text = _read_text_safe(PRED_REACT_TXT)
-    if pr_text.strip():
-        lines = []
-        for ln in pr_text.splitlines():
-            ln = ln.strip()
-            if not ln:
-                continue
-            if len(ln) > 200:
-                ln = ln[:200] + "..."
-            lines.append(ln)
-        story.append(Paragraph("<br/>".join(lines[:25]), st["mono"]))
+    section_flow = []
+    section_flow.append(Paragraph("Early-warning vs reactive comparison", st["sc_h2"]))
+
+    op_text = _read_text_safe(PRED_REACT_OP_TXT).strip()
+    if op_text:
+        html = "<br/>".join([ln.strip() for ln in op_text.splitlines()])
+        section_flow.append(Paragraph(html, st["BodyText"]))
+        section_flow.append(Spacer(1, 8))
+
+        if LEAD_TIME_CDF_PNG.exists():
+            img = Image(str(LEAD_TIME_CDF_PNG))
+            max_w = 17.5 * cm
+            iw, ih = img.imageWidth, img.imageHeight
+            if iw > 0:
+                s = max_w / float(iw)
+                img.drawWidth = iw * s
+                img.drawHeight = ih * s
+            section_flow.append(img)
+        else:
+            section_flow.append(Paragraph("- lead_time_cdf.png not found (run predictive_vs_reactive)", st["note"]))
     else:
-        story.append(Paragraph("- predictive vs reactive summary not found (run predictive_vs_reactive)", st["note"]))
+        section_flow.append(Paragraph("- operator summary not found (run predictive_vs_reactive)", st["note"]))
+
+    story.append(KeepTogether(section_flow))
     story.append(Spacer(1, 12))
 
-    # operator notes
     story.append(Paragraph("Operator notes", st["sc_h2"]))
 
     top_drivers = _read_top_drivers()
@@ -396,7 +405,6 @@ def main():
 
     print("report created!")
     print(f"saved: {OUT_PDF}")
-
 
 if __name__ == "__main__":
     main()

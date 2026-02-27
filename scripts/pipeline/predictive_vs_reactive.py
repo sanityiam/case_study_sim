@@ -15,6 +15,8 @@ EVAL_DIR.mkdir(parents=True, exist_ok=True)
 
 IN_CSV = SIM_DIR / "sim_results.csv"
 OUT_TXT = EVAL_DIR / "predictive_vs_reactive_summary.txt"
+OUT_OP_TXT = EVAL_DIR / "predictive_vs_reactive_operator.txt"
+OUT_CDF = EVAL_DIR / "lead_time_cdf.png"
 OUT_HIST = EVAL_DIR / "lead_time_minutes_hist.png"
 OUT_TIMELINE = EVAL_DIR / "warning_vs_event_timeline_sample.png"
 
@@ -39,6 +41,36 @@ def find_event_onsets(event: np.ndarray) -> np.ndarray:
     onsets = np.where((prev == 0) & (event == 1))[0]
     return onsets
 
+def plot_lead_time_cdf(lead_minutes: np.ndarray, out_path: Path):
+    if len(lead_minutes) == 0:
+        return
+    x = np.sort(lead_minutes)
+    y = np.arange(1, len(x) + 1) / float(len(x))
+
+    plt.figure(figsize=(7, 4))
+    plt.plot(x, y)
+    plt.xlabel("Warning time before outage onset (minutes)")
+    plt.ylabel("Fraction of outage onsets covered")
+    plt.title("How early warnings arrive (CDF)")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200)
+    plt.close()
+
+def build_operator_summary(coverage, median_lead, p90_lead, missed, precision, horizon_minutes):
+    false_alarm_pct = (1.0 - float(precision)) * 100.0 if precision is not None else 0.0
+    cov_pct = float(coverage) * 100.0
+
+    lines = []
+    lines.append("Early-warning vs reactive")
+    lines.append(f"- Coverage: This model warns before {cov_pct:.1f}% of outages onsets")
+    lines.append(f"- Typical warning time: median {median_lead:.0f} min (90% of the time < {p90_lead:.0f} min)")
+    lines.append(f"- Missed events: {missed} events had no warning inside the horizon ({horizon_minutes:.0f} min)")
+    lines.append(f"- False alarms: about {false_alarm_pct:.1f}% of warnings do not lead to an outage (precision {precision*100.0:.1f}%)")
+    lines.append("")
+    lines.append("Operator takeaway")
+    lines.append("- If warning is appears: you usually have 1–2 hours to respond")
+    lines.append("- Main goal: keep SoC higher / reduce net deficit peaks during warning periods")
+    return "\n".join(lines) + "\n"
 
 def main():
     if not IN_CSV.exists():
@@ -53,7 +85,6 @@ def main():
     reactive_event = (df["unserved_kw"].to_numpy() > 0.0).astype(int)
 
     # predictive warning signal definition
-    # reserve deficits computed from horizon reserve requirement vs feasible discharge energy/power
     required_cols = ["reserve_deficit_p_kw", "reserve_deficit_e_kwh"]
     for c in required_cols:
         if c not in df.columns:
@@ -98,34 +129,53 @@ def main():
     median_lead = float(np.median(lead_minutes)) if len(lead_minutes) else 0.0
     p90_lead = float(np.quantile(lead_minutes, 0.90)) if len(lead_minutes) else 0.0
 
-    # save summary
-    with open(OUT_TXT, "w", encoding="utf-8") as f:
-        f.write("Predictive vs Reactive Evaluation\n")
-        f.write("reactive event definition: unserved_kw > 0\n")
-        f.write("predictive warning definition: reserve_deficit_p_kw > 0 or reserve_deficit_e_kwh > 0\n")
-        f.write(f"horizon: H_STEPS={H_STEPS} (DT_MIN={DT_MIN} min)\n\n")
+    horizon_minutes = float(H_STEPS) * float(DT_MIN)
 
-        f.write("1. Warning as predictor of event within next horizon\n")
+    # summary
+    with open(OUT_TXT, "w", encoding="utf-8") as f:
+        f.write("Detailed Predictive vs Reactive Evaluation\n")
+        f.write("reactive event: outage happens when unserved_kw > 0\n")
+        f.write("early-warning: warnings appear when reserve_deficit_p_kw > 0 OR reserve_deficit_e_kwh > 0\n")
+        f.write(f"horizon: {horizon_minutes:.0f} minutes (H_STEPS={H_STEPS}, DT_MIN={DT_MIN})\n\n")
+
+        f.write("1. Warning as predictor of outage within the next horizon\n")
         f.write(f"TP={tp}  FP={fp}  TN={tn}  FN={fn}\n")
         f.write(f"precision={precision:.3f}\n")
         f.write(f"recall   ={recall:.3f}\n\n")
 
-        f.write("2. Lead-time vs reactive event onset (0->1 transitions)\n")
-        f.write(f"number of reactive event onsets: {len(onsets)}\n")
-        f.write(f"warning coverage of onsets: {coverage*100:.2f}%\n")
-        f.write(f"median lead time (min): {median_lead:.1f}\n")
-        f.write(f"90th percentile lead time (min): {p90_lead:.1f}\n")
-        f.write(f"missed onsets (there is no prior warning within horizon): {missed}\n")
+        f.write("2. Warning time before outage onset (0->1 transitions)\n")
+        f.write(f"number of outage onsets: {len(onsets)}\n")
+        f.write(f"coverage of onsets: {coverage*100:.2f}%\n")
+        f.write(f"median warning time (min): {median_lead:.1f}\n")
+        f.write(f"90th percentile warning time (min): {p90_lead:.1f}\n")
+        f.write(f"missed onsets (no warning): {missed}\n")
 
     print(f"Saved: {OUT_TXT}")
 
-    # histogram
+    # operator summary
+    op_text = build_operator_summary(
+        coverage=coverage,
+        median_lead=median_lead,
+        p90_lead=p90_lead,
+        missed=missed,
+        precision=precision,
+        horizon_minutes=horizon_minutes,
+    )
+    with open(OUT_OP_TXT, "w", encoding="utf-8") as f:
+        f.write(op_text)
+    print(f"Saved: {OUT_OP_TXT}")
+
+    # plot
     if len(lead_minutes) > 0:
+        plot_lead_time_cdf(lead_minutes, OUT_CDF)
+        print(f"Saved: {OUT_CDF}")
+
+        # histogram
         plt.figure(figsize=(7, 4))
         plt.hist(lead_minutes, bins=min(20, max(5, len(lead_minutes)//2)))
-        plt.xlabel("lead time before unserved-load (min)")
+        plt.xlabel("warning time before outage onset (min)")
         plt.ylabel("count")
-        plt.title("predictive warning lead time distribution")
+        plt.title("warning time distribution (histogram)")
         plt.tight_layout()
         plt.savefig(OUT_HIST, dpi=200)
         plt.close()
@@ -146,12 +196,11 @@ def main():
         plt.ylim(-0.1, 1.1)
         plt.legend()
         plt.xticks(rotation=25)
-        plt.title("Predictive warning vs reactive detection (sample window)")
+        plt.title("Predictive warning vs reactive detection")
         plt.tight_layout()
         plt.savefig(OUT_TIMELINE, dpi=200)
         plt.close()
         print(f"Saved: {OUT_TIMELINE}")
-
 
 if __name__ == "__main__":
     main()

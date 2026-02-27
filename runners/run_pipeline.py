@@ -29,11 +29,11 @@ def clean_outputs():
             print(f"Deleted: {t}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Run full microgrid risk pipeline.")
+    parser = argparse.ArgumentParser(description="Run full microgrid risk pipeline")
     parser.add_argument(
         "--clean",
         action="store_true",
-        help="Delete existing outputs (results/* and figures/) before running."
+        help="Delete existing outputs (results/ and figures/) before running"
     )
     args = parser.parse_args()
 
@@ -42,12 +42,12 @@ def main():
 
     if not (ROOT / "scripts" / "__init__.py").exists():
         raise FileNotFoundError(
-            "scripts/__init__.py missing. Create an empty scripts/__init__.py so '-m scripts.xxx' works."
+            "scripts/__init__.py missing - create an empty scripts/__init__.py so '-m scripts.xxx' works"
         )
 
     if not (ROOT / "scripts" / "pipeline" / "__init__.py").exists():
         raise FileNotFoundError(
-            "scripts/pipeline/__init__.py missing. Create an empty scripts/pipeline/__init__.py so '-m scripts.pipeline.xxx' works."
+            "scripts/pipeline/__init__.py missing - create an empty scripts/pipeline/__init__.py so '-m scripts.pipeline.xxx' works"
         )
 
     if args.clean:

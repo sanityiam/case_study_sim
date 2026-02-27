@@ -30,7 +30,7 @@ DT_H   = DT_MIN / 60.0
 H_STEPS = 8
 H_HOURS = H_STEPS * DT_H
 
-# PV system size label (PVGIS peak power)
+# PV system size label (PVGIS peak power) (===CHANGE THESE===)
 PV_KWP = 300.0
 
 # Battery parameters (===CHANGE THESE===)

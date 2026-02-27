@@ -152,4 +152,4 @@ plt.tight_layout()
 plt.savefig(OUT_SHAP_BEE, dpi=400, bbox_inches="tight")
 plt.close()
 
-print("Saved optional beeswarm:", OUT_SHAP_BEE)
+print("Saved beeswarm:", OUT_SHAP_BEE)
